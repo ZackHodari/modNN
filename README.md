@@ -1,0 +1,2 @@
+# modNN
+Modular NN architecture
