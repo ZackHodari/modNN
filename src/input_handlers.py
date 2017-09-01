@@ -34,5 +34,9 @@ class Waves(InputHandler):
     def feed_dict(self, batch, is_training):
         return {self.inputs: batch.y, self.is_training: is_training}
 
+    @property
     def data_config(self):
         return {'num_samples': self.input_dim}
+
+
+

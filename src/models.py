@@ -1,5 +1,5 @@
 from collections import defaultdict
-from helper import save_to_file
+from helper import save_to_file, variable_summaries, FC_layer
 import tensorflow as tf
 import numpy as np
 import os
@@ -52,7 +52,8 @@ class Model(object):
         self.train_summaries = tf.summary.merge_all(key='train')
         self.valid_summaries = tf.summary.merge_all(key='valid')
         self.test_summaries = tf.summary.merge_all(key='test')
-        self.summary_writer = tf.summary.FileWriter('results/{}'.format(self.experiment_name), self.sess.graph)
+        self.summary_writer = tf.summary.FileWriter(
+            '{}/results/{}'.format(os.environ['modNN_DIR'], self.experiment_name), self.sess.graph)
         self.saver = tf.train.Saver()
         self.log_data = {output_name: {
             metric: {'epochs': [], 'stats': []}
@@ -61,7 +62,7 @@ class Model(object):
         }
 
     def __str__(self):
-        print('experiment_name: {}'.format(self.experiment_name))
+        return 'experiment_name: {}'.format(self.experiment_name)
 
     def add_handlers(self, **kwargs):
         raise NotImplementedError('add_handlers not defined in Model subclass {}'.format(self.__class__.__name__))
@@ -104,7 +105,7 @@ class Model(object):
                         valid_error[output_name], valid_accuracy[output_name]))
 
         self.save_model()
-        save_to_file(self.log_data, 'results/{}/results.log'.format(self.experiment_name))
+        save_to_file(self.log_data, os.path.join(os.environ['modNN_DIR'], 'results', self.experiment_name, 'results.log'))
         return self.log_data
 
     def train_epoch(self, epoch):
@@ -182,7 +183,7 @@ class Model(object):
             self.log_data[output_name]['accuracy_{}'.format(stage)]['stats'].append(accuracy[output_name])
 
     def ckpt_path(self, epoch=None):
-        _ckpt_dir = os.path.join('results', '{}'.format(self.experiment_name), 'model')
+        _ckpt_dir = os.path.join(os.environ['modNN_DIR'], 'results', '{}'.format(self.experiment_name), 'model')
         if not os.path.exists(_ckpt_dir):  # ensure directory already exists
             os.makedirs(_ckpt_dir)
         
@@ -247,12 +248,12 @@ class GraphModel(Model):
                                          model_graph=model_graph)
 
     def __str__(self):
-        print('experiment_name: {}\ninput_type: {}\noutput_type: {}\nmodule_handlers: {}\n'.format(
+        return 'experiment_name: {}\ninput_type: {}\noutput_type: {}\nmodule_handlers: {}\n'.format(
             self.experiment_name,
             ' '.join(input_handler.__class__.__name__ for input_handler in self.input_handlers.values()),
             ' '.join(output_handler.__class__.__name__ for output_handler in self.output_handlers.values()),
             ' '.join(map(str, self.module_handlers.values()))
-        ))
+        )
 
     # add handlers to self
     def add_handlers(self, **kwargs):
@@ -271,12 +272,12 @@ class GraphModel(Model):
 
     # load data provider
     def load_provider(self, **kwargs):
-        utt_config = []
+        data_config = []
         for input_handler in self.input_handlers.values():
-            utt_config += input_handler.data_config.items()
+            data_config += input_handler.data_config.items()
         for output_handler in self.output_handlers.values():
-            utt_config += output_handler.data_config.items()
-        self.data_provider = kwargs['data_provider'](dict(utt_config))
+            data_config += output_handler.data_config.items()
+        self.data_provider = kwargs['data_provider'](dict(data_config))
 
     # build graph by iterating through nodes and accumulating the graph structure (in node_inputs)
     def build_graph(self, **kwargs):
@@ -336,14 +337,13 @@ class GraphModel(Model):
         # add a linear fully-connected layer to the output handlers, according to their output dimension
         for node, output_handler in self.output_handlers.iteritems():
             with tf.variable_scope(node):
-                assert len(outputs[node]) == 1, (
+                assert len(graph_outputs[node]) == 1, (
                     'concatenation of handlers is not supported, ensure no handler has multiple incoming handlers'
-                    '\n{}'.format(outputs[node]))
-                output_handler.outputs = FC_layer(outputs[node][0], output_handler.output_dim, nonlinearity=tf.identity,
-                                                  is_training=output_handler.input_handler.is_training,
-                                                  add_summaries=self.add_summaries, name='linear_layer')
+                    '\n{}'.format(graph_outputs[node]))
+                output_handler.outputs = FC_layer(graph_outputs[node][0], output_handler.output_dim, nonlinearity=tf.identity,
+                                                  is_training=output_handler.input_handler.is_training, name='linear_layer')
 
-        return graph_outputs
+        return self
 
     # add prediction summaries
     def add_prediction_summaries(self, **kwargs):
@@ -411,111 +411,27 @@ class GraphModel(Model):
                 for output_name, output_handler in self.output_handlers.iteritems()}
 
 
-################
-#   UNTESTED   #
-################
-class SimpleModel(Model):
+class SimpleModel(GraphModel):
     """
     Builds a simple chain graph model: input -> modules -> output
     """
-    
+
     def __init__(self, experiment_name, data_provider,
                  input_handler, module_handlers, output_handler,
                  add_summaries=False, ckpt_interval=0, verbose=True):
 
-        super(SimpleModel, self).__init__(experiment_name,
-                                          add_summaries, ckpt_interval, verbose,
-                                          data_provider=data_provider,
-                                          input_handler=input_handler,
-                                          module_handlers=module_handlers,
-                                          output_handler=output_handler)
+        input_handlers = {'input-1': input_handler}
+        module_handlers = {'module-{}'.format(i+1): module_handler for i, module_handler in enumerate(module_handlers)}
+        output_handlers = {'output-1': output_handler}
 
-    def __str__(self):
-        print('experiment_name: {}\ninput_type: {}\noutput_type: {}\nmodule_handlers: {}\n'.format(
-            self.experiment_name,
-            self.input_handler.__class__.__name__,
-            self.output_handler.__class__.__name__,
-            ' '.join(map(str, self.module_handlers))
-        ))
+        model_graph = []
+        for handler, next_handler in zip(input_handlers.keys() + module_handlers.keys(),
+                                         module_handlers.keys() + output_handlers.keys()):
+            model_graph.append((handler, [next_handler]))
 
-    # add handlers to self
-    def add_handlers(self, **kwargs):
-        self.input_handler = kwargs['input_handler']()
-        self.input_handlers = [self.input_handler]
-
-        self.module_handlers = kwargs['module_handlers']
-        if not isinstance(self.module_handlers, list):
-            self.module_handlers = [self.module_handlers]
-
-        self.output_handler = kwargs['output_handler']()
-        self.output_handlers = [self.output_handler]
-
-    # placeholders
-    def init_placeholders(self, **kwargs):
-        self.input_handler.init_placeholders()
-        self.output_handler.init_placeholders()
-
-    # load data provider
-    def load_provider(self, **kwargs):
-        self.data_provider = kwargs['data_provider'](self.input_handler.data_config)
-
-    # build graph by iterating through nodes and accumulating the graph structure (in node_inputs)
-    def build_graph(self, **kwargs):
-        prev_outputs = self.input_handler.inputs
-        for module_handler in self.module_handlers:
-            prev_outputs = module_handler.build_graph(prev_outputs, self.add_summaries)
-
-        self.output_handler.outputs = FC_layer(prev_outputs, self.output_handler.output_dim, nonlinearity=tf.identity,
-                                               is_training=self.input_handler.is_training, name='layer_identity')
-
-    # add prediction summaries
-    def add_prediction_summaries(self, **kwargs):
-        variable_summaries(self.output_handler.predictions)
-
-    # add metrics and their summaries
-    def add_metrics(self, **kwargs):
-        self.error = self.output_handler.error
-        self.accuracy = self.output_handler.accuracy
-
-        tf.summary.scalar('error_train', self.error, collections=['train'])
-        tf.summary.scalar('error_valid', self.error, collections=['valid'])
-        tf.summary.scalar('error_test', self.error, collections=['test'])
-        tf.summary.scalar('accuracy_train', self.accuracy, collections=['train'])
-        tf.summary.scalar('accuracy_valid', self.accuracy, collections=['valid'])
-        tf.summary.scalar('accuracy_test', self.accuracy, collections=['test'])
-
-        tf.losses.add_loss(self.error)
-
-    # Populate feed_dict for running operations using abstract methods from Input/Target classes
-    def feed_dict(self, batch, is_training=False):
-        items = self.input_handler.feed_dict(batch, is_training).items()
-
-        # for module_handler in self.module_handlers:
-        #     items += module_handler.feed_dict(batch).items()
-
-        items += self.output_handler.feed_dict(batch).items()
-
-        return dict(items)
-
-    # iterate through batches of file_paths, calculating predictions and saving target values
-    def predict(self, file_paths):
-        predictions = np.zeros((file_paths.shape[0], self.output_handler.output_dim))
-        targets = np.zeros((file_paths.shape[0], self.output_handler.output_dim))
-        
-        for i, batch in enumerate(self.data_provider.yield_batches(file_paths)):
-            batch_size = len(batch)
-            batch_slice = slice(batch_size * i,
-                                batch_size * (i + 1))
-            
-            predictions[batch_slice], targets[batch_slice] = self.sess.run(self.prediction_op, 
-                                                                           feed_dict=self.feed_dict(batch))
-        
-        return predictions, targets
-    
-    # Choose which operations to run for prediction
-    @property
-    def prediction_op(self):
-        return [self.output_handler.predictions, self.output_handler.targets]
+        super(SimpleModel, self).__init__(experiment_name, data_provider,
+                                          input_handlers, module_handlers, output_handlers, model_graph,
+                                          add_summaries=add_summaries, ckpt_interval=ckpt_interval, verbose=verbose)
 
 
 

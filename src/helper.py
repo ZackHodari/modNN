@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.python.ops import init_ops
 import pickle
 __all__ = ['save_to_file', 'load_from_file', 'variable_summaries', 'FC_layer', 'recurrent_cell']
 
@@ -40,8 +41,8 @@ def FC_layer(inputs, output_dim, nonlinearity=tf.nn.relu,
         inputs = tf.layers.dropout(inputs, dropout_prob, training=is_training)
 
     outputs = tf.layers.dense(inputs, output_dim, nonlinearity,
-                              kernel_initializer=tf.glorot_normal_initializer(),
-                              bias_initializer=tf.zeros_initializer(),
+                              kernel_initializer=init_ops.glorot_normal_initializer(),
+                              bias_initializer=init_ops.zeros_initializer(),
                               name=name)
 
     return outputs

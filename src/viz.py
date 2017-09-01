@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from helper import load_from_file
 import numpy as np
+import os
+__all__ = ['plot_learning_curves', 'plot_performance', 'viz_experiments']
 
 
 def plot_learning_curves(experiment_labels, experiment_stats,
@@ -53,9 +55,9 @@ def plot_learning_curves(experiment_labels, experiment_stats,
     axs[1].set_title('Accuracy')
 
     if save:
-        print('saving to results/graphs/curves/{}-epochgraph.pdf'.format(file_name))
+        print('saving to results/graphs/{}-epochgraph.pdf'.format(file_name))
         plt.savefig(
-            'results/graphs/curves/{}-epochgraph.pdf'.format(file_name),
+            os.path.join(os.environ['modNN_DIR'], 'results', 'graphs', '{}-epochgraph.pdf'.format(file_name)),
             bbox_extra_artists=(lgd, tit,), 
             bbox_inches='tight'
         )
@@ -146,9 +148,9 @@ def plot_performance(experiment_labels, experiment_stats,
     plt.subplots_adjust(top=0.925)
 
     if save:
-        print('saving to results/graphs/bars/{}-barchart.pdf'.format(file_name))
+        print('saving to results/graphs/{}-barchart.pdf'.format(file_name))
         plt.savefig(
-            'results/graphs/bars/{}-barchart.pdf'.format(file_name),
+            os.path.join(os.environ['modNN_DIR'], 'results', 'graphs', '{}-barchart.pdf'.format(file_name)),
             bbox_extra_artists=(tit,),
             bbox_inches='tight'
         )
@@ -173,7 +175,8 @@ def viz_experiments(experiments_info, title, file_name,
     """
 
     experiment_labels = map(lambda (label, name): label, experiments_info)
-    experiment_stats = map(lambda (label, name): load_from_file('results/{}/results.log'.format(name)), experiments_info)
+    experiment_stats = map(lambda (label, name): load_from_file(
+        os.path.join(os.environ['modNN_DIR'], 'results', name, 'results.log')), experiments_info)
 
     # collect all output types used by these experiments
     output_names = set()

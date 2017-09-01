@@ -14,7 +14,7 @@ class AbstractProvider(object):
     :param rng_seed: integer (optional) - custom seed for rng used for shuffling
     """
 
-    def __init__(self, file_paths, data_config, batch_size, shuffle_data, rng_seed=DEFAULT_SEED):
+    def __init__(self, file_paths, data_config, batch_size, shuffle_data, rng_seed=DEFAULT_SEED, data_splitter=None):
         assert isinstance(file_paths, list), (
             'file_paths must be a list'
             '\nGot {}'.format(type(file_paths)))
@@ -37,15 +37,22 @@ class AbstractProvider(object):
             'shuffle_data must be a boolean'
             '\nGot a {}'.format(type(shuffle_data)))
 
-        self.file_paths_all = file_paths
-        self._current_order = np.arange(self.file_paths_train.shape[0])
-        self.data_config    = data_config
+        self.file_paths_all = np.array(file_paths)
         self.rng_seed       = rng_seed
         self.rng            = np.random.RandomState(rng_seed)
+
+        if data_splitter is None:
+            self.train_valid_test_split()
+        else:
+            # use a custom splitting function instead
+            data_splitter()
+
+        self._current_order = np.arange(self.file_paths_train.shape[0])
+        self.data_config    = data_config
         self.batch_size     = batch_size
         self.shuffle_data   = shuffle_data
 
-    # Splits the utterance names into 3 lists for training, validation and testing
+    # Splits the file paths into 3 lists for training, validation and testing
     def train_valid_test_split(self, valid_size=0.15, test_size=0.15):
         num_samples = self.file_paths_all.shape[0]
         indices = self.rng.permutation(num_samples)
@@ -54,8 +61,8 @@ class AbstractProvider(object):
         valid_index = int(num_samples*valid_size) + test_index
 
         # data = [test_data, valid_data, train_data]
-        self.utt_paths_test   = self.file_paths_all[indices[0:           test_index]]
-        self.utt_paths_valid  = self.file_paths_all[indices[test_index:  valid_index]]
+        self.file_paths_test  = self.file_paths_all[indices[0:           test_index]]
+        self.file_paths_valid = self.file_paths_all[indices[test_index:  valid_index]]
         self.file_paths_train = self.file_paths_all[indices[valid_index: None]]
 
     # Resets the data provider to the initial state, resetting the rng and fixing the order of the training data
@@ -96,11 +103,11 @@ class AbstractProvider(object):
 
     @property
     def valid_data(self):
-        return self.yield_batches(self.utt_paths_valid)
+        return self.yield_batches(self.file_paths_valid)
 
     @property
     def test_data(self):
-        return self.yield_batches(self.utt_paths_test)
+        return self.yield_batches(self.file_paths_test)
 
     def all_data(self):
         return self.yield_batches(self.file_paths_all)
@@ -118,11 +125,11 @@ class AbstractProvider(object):
 
     @property
     def num_batches_valid(self):
-        return self.utt_paths_valid.shape[0] // self.batch_size
+        return self.file_paths_valid.shape[0] // self.batch_size
 
     @property
     def num_batches_test(self):
-        return self.utt_paths_test.shape[0] // self.batch_size
+        return self.file_paths_test.shape[0] // self.batch_size
 
 
 class AbstractBatch(list):
@@ -156,11 +163,8 @@ class AbstractBatch(list):
 
 class DemoProvider(AbstractProvider):
     def __init__(self, data_config, batch_size=50, shuffle_data=True):
-        file_paths = range(data_config.get('num_samples', 1000))
+        file_paths = range(data_config.get('num_samples', 100))
         super(DemoProvider, self).__init__(file_paths, data_config, batch_size, shuffle_data)
-
-        # can use a custom splitting function instead
-        self.train_valid_test_split()
 
     def load_data(self, file_paths):
         return DemoBatch(file_paths, self.data_config)

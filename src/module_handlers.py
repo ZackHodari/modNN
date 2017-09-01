@@ -1,5 +1,5 @@
 import tensorflow as tf
-from helper import *
+from helper import variable_summaries, FC_layer, recurrent_cell
 __all__ = ['FCModule', 'CNNModule', 'RNNModule']
 
 
