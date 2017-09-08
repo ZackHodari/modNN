@@ -3,10 +3,9 @@ from helper import save_to_file, variable_summaries, FC_layer
 import tensorflow as tf
 import numpy as np
 import os
-__all__ = ['GraphModel', 'SimpleModel']
 
 
-class Model(object):
+class _Model(object):
     
     def __init__(self, experiment_name,
                  add_summaries=False, ckpt_interval=0, verbose=True, **kwargs):
@@ -55,10 +54,15 @@ class Model(object):
         self.summary_writer = tf.summary.FileWriter(
             '{}/results/{}'.format(os.environ['modNN_DIR'], self.experiment_name), self.sess.graph)
         self.saver = tf.train.Saver()
-        self.log_data = {output_name: {
-            metric: {'epochs': [], 'stats': []}
-            for metric in ['error_train', 'accuracy_train', 'error_valid', 'accuracy_valid', 'error_test', 'accuracy_test']}
-            for output_name in self.output_handlers
+        self.log_data = {
+            'epochs': [],
+            'metrics': {
+                output_name: {
+                    metric: []
+                    for metric in ['error_train', 'accuracy_train', 'error_valid', 'accuracy_valid', 'error_test', 'accuracy_test']
+                }
+                for output_name in self.output_handlers
+            }
         }
 
     def __str__(self):
@@ -176,11 +180,10 @@ class Model(object):
         return self.sess.run(op, feed_dict=self.feed_dict(batch))
 
     def write_log(self, epoch, stage, error, accuracy):
+        self.log_data['epochs'].append(epoch)
         for output_name in self.output_handlers.keys():
-            self.log_data[output_name]['error_{}'.format(stage)]['epochs'].append(epoch)
-            self.log_data[output_name]['error_{}'.format(stage)]['stats'].append(error[output_name])
-            self.log_data[output_name]['accuracy_{}'.format(stage)]['epochs'].append(epoch)
-            self.log_data[output_name]['accuracy_{}'.format(stage)]['stats'].append(accuracy[output_name])
+            self.log_data['metrics'][output_name]['error_{}'.format(stage)].append(error[output_name])
+            self.log_data['metrics'][output_name]['accuracy_{}'.format(stage)].append(accuracy[output_name])
 
     def ckpt_path(self, epoch=None):
         _ckpt_dir = os.path.join(os.environ['modNN_DIR'], 'results', '{}'.format(self.experiment_name), 'model')
@@ -226,7 +229,7 @@ class Model(object):
         return [self.test_summaries, self.error, self.accuracy]
 
 
-class GraphModel(Model):
+class GraphModel(_Model):
     """
     Builds the model based on the graph specified in the setup config
 
@@ -420,9 +423,9 @@ class SimpleModel(GraphModel):
                  input_handler, module_handlers, output_handler,
                  add_summaries=False, ckpt_interval=0, verbose=True):
 
-        input_handlers = {'input-1': input_handler}
+        input_handlers = {'input': input_handler}
         module_handlers = {'module-{}'.format(i+1): module_handler for i, module_handler in enumerate(module_handlers)}
-        output_handlers = {'output-1': output_handler}
+        output_handlers = {'output': output_handler}
 
         model_graph = []
         for handler, next_handler in zip(input_handlers.keys() + module_handlers.keys(),

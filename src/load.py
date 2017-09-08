@@ -3,7 +3,7 @@ import numpy as np
 DEFAULT_SEED = 1234567890
 
 
-class AbstractProvider(object):
+class _AbstractProvider(object):
     """
     Abstract data provider, uses a config that is passed onto the AbstractSample class which loads the datum
 
@@ -79,7 +79,7 @@ class AbstractProvider(object):
         self._current_order = self._current_order[perm]
         self.file_paths_train = self.file_paths_train[perm]
 
-    # Given a list of file paths, yield mini-batches (AbstractBatch) of self.batch_size samples (AbstractSample)
+    # Given a list of file paths, yield mini-batches (_AbstractBatch) of self.batch_size samples (AbstractSample)
     def yield_batches(self, file_paths):
         num_batches = int((file_paths.shape[0] - 1) // self.batch_size + 1)
 
@@ -90,7 +90,7 @@ class AbstractProvider(object):
             yield self.load_data(file_paths[batch_slice])
 
     def load_data(self, file_paths):
-        # e.g. return AbstractBatch(file_paths, self.data_config)
+        # e.g. return _AbstractBatch(file_paths, self.data_config)
         raise NotImplementedError('This should be implemented in subclasses for specific datasets')
 
     # A generator for batches from the test data
@@ -132,7 +132,7 @@ class AbstractProvider(object):
         return self.file_paths_test.shape[0] // self.batch_size
 
 
-class AbstractBatch(list):
+class _AbstractBatch(list):
     """
     Abstract mini-batch list, contains a list of samples and allows for access to sample attributes in array form
 
@@ -140,7 +140,7 @@ class AbstractBatch(list):
     """
     
     def __init__(self, file_paths):
-        super(AbstractBatch, self).__init__(file_paths)
+        super(_AbstractBatch, self).__init__(file_paths)
 
     # get attr from the list of samples
     def __getattr__(self, attr):
@@ -161,7 +161,7 @@ class AbstractBatch(list):
 # ----------------------- #
 
 
-class DemoProvider(AbstractProvider):
+class DemoProvider(_AbstractProvider):
     def __init__(self, data_config, batch_size=50, shuffle_data=True):
         file_paths = range(data_config.get('num_samples', 100))
         super(DemoProvider, self).__init__(file_paths, data_config, batch_size, shuffle_data)
@@ -170,9 +170,9 @@ class DemoProvider(AbstractProvider):
         return DemoBatch(file_paths, self.data_config)
 
 
-class DemoBatch(AbstractBatch):
+class DemoBatch(_AbstractBatch):
     def __init__(self, file_paths, data_config):
-        super(AbstractBatch, self).__init__([DemoSample(file_path, data_config) for file_path in file_paths])
+        super(DemoBatch, self).__init__([DemoSample(file_path, data_config) for file_path in file_paths])
 
 
 class DemoSample(object):

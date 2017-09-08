@@ -1,8 +1,7 @@
 import tensorflow as tf
 from tensorflow.python.ops import init_ops
 import pickle
-__all__ = ['save_to_file', 'load_from_file', 'variable_summaries', 'FC_layer', 'recurrent_cell']
-
+import os
 
 # save/load functions that can easily be changed to different module backends
 def save_to_file(data, filepath):
@@ -17,6 +16,22 @@ def load_from_file(filepath):
         data = pickle.load(f)
 
     return data
+
+
+def print_log(experiment_name):
+    log_data = load_from_file('{}/results/{}/results.log'.format(
+        os.path.join(os.path.abspath(__file__).split('/modNN')[0], 'modNN'), experiment_name))
+    print('\naverage performance of model over 5 folds\n')
+    for i, e in enumerate(log_data['epochs']):
+        print('epoch {0:2} error_train ........ acc_train ........ error_valid ........ acc_valid ........'
+              .format(e + 1))
+        for output_name, stats in log_data['metrics']:
+            print('         {0:11} {1:.6f}           {2:.6f}             {3:.6f}           {4:.6f}'.format(
+                output_name[:11],  # up to 11 characters long
+                stats['error_train'][i],
+                stats['accuracy_train'][i],
+                stats['error_valid'][i],
+                stats['accuracy_valid'][i]))
 
 
 def variable_summaries(var):

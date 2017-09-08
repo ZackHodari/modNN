@@ -1,3 +1,3 @@
-from egs import tasks
-from src import run_task
+import src
+import egs
 

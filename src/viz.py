@@ -3,7 +3,6 @@ from matplotlib.patches import Rectangle
 from helper import load_from_file
 import numpy as np
 import os
-__all__ = ['plot_learning_curves', 'plot_performance', 'viz_experiments']
 
 
 def plot_learning_curves(experiment_labels, experiment_stats,

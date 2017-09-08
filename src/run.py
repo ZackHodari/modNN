@@ -2,8 +2,8 @@ from models import SimpleModel, GraphModel
 import sys
 import os
 
-num_epochs = 40
-interactive = __name__ == '__main__'
+_num_epochs = 40
+_interactive = __name__ == '__main__'
 
 
 """
@@ -55,12 +55,12 @@ def run_task(task):
         model.restore_model()
     else:
         # train the model
-        model.train(num_epochs=num_epochs)
+        model.train(num_epochs=_num_epochs)
 
     return model
 
 
-if interactive:
+if _interactive:
     os.environ['modNN_DIR'] = os.path.join(os.path.abspath(__file__).split('/modNN')[0], 'modNN')
 
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

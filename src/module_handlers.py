@@ -1,9 +1,8 @@
 import tensorflow as tf
 from helper import variable_summaries, FC_layer, recurrent_cell
-__all__ = ['FCModule', 'CNNModule', 'RNNModule']
 
 
-class ModuleHandler(object):
+class _ModuleHandler(object):
     """
     Class which builds a specific model type
     """
@@ -16,7 +15,7 @@ class ModuleHandler(object):
         raise NotImplementedError('Computation graph not defined')
 
 
-class FCModule(ModuleHandler):
+class FCModule(_ModuleHandler):
     """
     Implements build_graph function to create fully connected layers
     """
@@ -45,7 +44,7 @@ class FCModule(ModuleHandler):
         return prev_layer
 
 
-class CNNModule(ModuleHandler):
+class CNNModule(_ModuleHandler):
     """
     Implements build_graph function to create N convolutional layers
     """
@@ -86,7 +85,7 @@ class CNNModule(ModuleHandler):
         return flattened
 
 
-class RNNModule(ModuleHandler):
+class RNNModule(_ModuleHandler):
     """
     Implements build_graph function to create (stacked) recurrent layers
     """

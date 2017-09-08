@@ -1,9 +1,8 @@
 import tensorflow as tf
 import numpy as np
-__all__ = ['WaveClasses']
 
 
-class OutputHandler(object):
+class _OutputHandler(object):
     """
     Class which contains all attributes specific to an output type
     """
@@ -37,7 +36,7 @@ class OutputHandler(object):
         return {}
 
 
-class WaveClasses(OutputHandler):
+class WaveClasses(_OutputHandler):
     @property
     def output_dim(self):
         return 3

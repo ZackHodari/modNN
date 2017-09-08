@@ -1,2 +1,2 @@
-from setup import tasks
+import setup
 

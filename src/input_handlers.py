@@ -1,8 +1,7 @@
 import tensorflow as tf
-__all__ = ['Waves']
 
 
-class InputHandler(object):
+class _InputHandler(object):
     """
     Class which contains all attributes specific to an input type
     """
@@ -22,7 +21,7 @@ class InputHandler(object):
         raise NotImplementedError('Data provider constructor not defined')
 
 
-class Waves(InputHandler):
+class Waves(_InputHandler):
     @property
     def input_dim(self):
         return 100
